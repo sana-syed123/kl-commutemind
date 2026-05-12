@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { useAppStore } from '../../store/useAppStore';
-import { Search, Loader2, Mic, MicOff, Train, Leaf, MapPin, Footprints } from 'lucide-react';
+import { Search, Loader2, Mic, MicOff, Train, Leaf, MapPin, Footprints, Share2, Play } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { STATION_DATA, getLineName, LINE_COLORS } from '../../utils/stations';
 
@@ -13,7 +13,7 @@ const PLACEHOLDERS = [
 ];
 
 export default function RouteSearch() {
-  const { nlQuery, setNlQuery, routes, setRoutes, setIsRouting, isRouting, selectedRouteKey, setSelectedRouteKey } = useAppStore();
+  const { nlQuery, setNlQuery, routes, setRoutes, setIsRouting, isRouting, selectedRouteKey, setSelectedRouteKey, addJourney } = useAppStore();
   const shouldReduceMotion = useReducedMotion();
   const [fallbackMode, setFallbackMode] = useState(false);
   const [origin, setOrigin] = useState('');
@@ -159,7 +159,6 @@ export default function RouteSearch() {
     const pathNodes = route.path;
     const steps = [];
     
-    // Group adjacent nodes on the same line
     let currentLine = null;
     let currentStops = [];
     
@@ -179,11 +178,38 @@ export default function RouteSearch() {
       steps.push({ line: currentLine, stops: currentStops });
     }
 
+    const handleShare = async () => {
+      const text = `🚇 My Commute on KL CommuteMind\nTotal Time: ${Math.round(route.total_time_mins)} min\nTransfers: ${route.transfers}\nAvoid the jams!`;
+      if (navigator.share) {
+        try {
+          await navigator.share({ title: 'KL CommuteMind Route', text });
+        } catch (e) {
+          console.warn('Share failed', e);
+        }
+      } else {
+        navigator.clipboard.writeText(text);
+        alert('Route copied to clipboard!');
+      }
+    };
+
+    const handleStartJourney = () => {
+      const start = STATION_DATA[pathNodes[0].split('_')[0]]?.name || 'Origin';
+      const end = STATION_DATA[pathNodes[pathNodes.length-1].split('_')[0]]?.name || 'Destination';
+      addJourney({
+        date: new Date().toISOString(),
+        duration: Math.round(route.total_time_mins),
+        origin: start,
+        destination: end,
+        delayTags: route.total_time_mins > 28 ? ['DELAY'] : []
+      });
+      alert('Journey Started! Tracking enabled.');
+    };
+
     return (
       <div className="mt-4 p-4 bg-black/40 rounded-xl border border-white/5 relative overflow-hidden">
         {/* Directions Header Summary */}
         <div className="flex items-center justify-between mb-4 pb-3 border-b border-white/10">
-          <div className="text-sm font-bold text-white">Route Details</div>
+          <div className="text-sm font-bold text-white">Boarding Pass</div>
           <div className="flex space-x-3 text-xs text-gray-400 font-medium">
             <span>{Math.round(route.total_time_mins)} min</span>
             <span>•</span>
@@ -206,6 +232,12 @@ export default function RouteSearch() {
             const isWalk = step.line === 'walk';
             const color = LINE_COLORS[step.line] || LINE_COLORS.default;
             
+            // Mock Platform
+            const platformNumber = isWalk ? null : (['KJ', 'AG', 'SP', 'MR'].includes(step.line) ? `Platform ${Math.floor(Math.random() * 2) + 1}` : `Platform ${Math.random() > 0.5 ? 'A' : 'B'}`);
+            
+            // Mock Departure Time (adding progressive delay)
+            const depTime = new Date(Date.now() + idx * 15 * 60000).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+
             return (
               <div key={idx} className="relative flex items-start pb-6">
                 <div className="w-8 flex-shrink-0 flex justify-center z-10 pt-1">
@@ -217,18 +249,24 @@ export default function RouteSearch() {
                   </div>
                 </div>
                 <div className="ml-3 flex-1 pt-0.5">
-                  <div className="text-sm font-bold text-gray-100 flex items-center">
-                    {isWalk ? (
-                      <Footprints className="w-4 h-4 mr-2 opacity-70" />
-                    ) : (
-                      <Train className="w-4 h-4 mr-2" style={{ color }} />
-                    )}
-                    {isWalk ? `Walk to ${endName}` : `Take ${getLineName(step.line)}`}
+                  <div className="text-sm font-bold text-gray-100 flex items-center justify-between">
+                    <span className="flex items-center">
+                      {isWalk ? (
+                        <Footprints className="w-4 h-4 mr-2 opacity-70" />
+                      ) : (
+                        <Train className="w-4 h-4 mr-2" style={{ color }} />
+                      )}
+                      {isWalk ? `Walk to ${endName}` : `Take ${getLineName(step.line)}`}
+                    </span>
+                    {!isWalk && <span className="text-xs bg-white/10 px-2 py-0.5 rounded font-mono">{depTime}</span>}
                   </div>
                   {!isWalk && (
-                    <div className="text-xs text-gray-400 mt-1">
-                      From <span className="text-gray-300 font-semibold">{startName}</span> to <span className="text-gray-300 font-semibold">{endName}</span>
-                      <span className="ml-2 px-1.5 py-0.5 bg-white/10 rounded text-[10px] uppercase font-bold tracking-widest">{step.stops.length - 1} stops</span>
+                    <div className="text-xs text-gray-400 mt-1 flex flex-col space-y-1">
+                      <span>From <span className="text-gray-300 font-semibold">{startName}</span> to <span className="text-gray-300 font-semibold">{endName}</span></span>
+                      <div className="flex items-center space-x-2">
+                        <span className="px-1.5 py-0.5 bg-white/10 rounded text-[10px] uppercase font-bold tracking-widest text-indigo-300">{platformNumber}</span>
+                        <span className="px-1.5 py-0.5 bg-white/10 rounded text-[10px] uppercase font-bold tracking-widest">{step.stops.length - 1} stops</span>
+                      </div>
                     </div>
                   )}
                   {isWalk && (
@@ -242,7 +280,7 @@ export default function RouteSearch() {
           })}
           
           {/* Destination Pin */}
-          <div className="relative flex items-center">
+          <div className="relative flex items-center pb-6">
              <div className="w-8 flex-shrink-0 flex justify-center z-10">
                <MapPin className="w-5 h-5 text-rose-500 fill-rose-500/20" />
              </div>
@@ -250,6 +288,16 @@ export default function RouteSearch() {
                Arrive at Destination
              </div>
           </div>
+        </div>
+
+        {/* Actions */}
+        <div className="flex space-x-3 mt-2 border-t border-white/10 pt-4">
+          <button onClick={handleStartJourney} className="flex-1 bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-2.5 rounded-xl transition flex items-center justify-center text-sm shadow-lg shadow-indigo-500/25">
+            <Play className="w-4 h-4 mr-2" /> Start Journey
+          </button>
+          <button onClick={handleShare} className="flex-1 bg-white/10 hover:bg-white/20 text-white font-bold py-2.5 rounded-xl transition flex items-center justify-center text-sm">
+            <Share2 className="w-4 h-4 mr-2" /> Share Route
+          </button>
         </div>
       </div>
     );

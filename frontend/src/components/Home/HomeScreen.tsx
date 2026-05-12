@@ -4,6 +4,9 @@ import { AlertTriangle, Clock, ArrowRight, Map as MapIcon, Search, Bookmark, Bel
 import { LineChart, Line, ResponsiveContainer } from 'recharts';
 import RouteSearch from '../Planner/RouteSearch';
 import TransitMap from '../Map/TransitMap';
+import WeatherStrip from './WeatherStrip';
+import SavedCommutes from './SavedCommutes';
+import JourneyHistory from './JourneyHistory';
 import { useAppStore } from '../../store/useAppStore';
 import { cn } from '../../utils/cn';
 
@@ -79,8 +82,10 @@ export default function HomeScreen() {
   return (
     <div className="min-h-screen bg-[#0F1117] text-gray-100 font-sans pb-24 md:pb-8 selection:bg-blue-500/30">
       
-      {/* Top Header */}
-      <header className="pt-8 pb-6 px-4 md:px-8 max-w-7xl mx-auto flex items-center justify-between">
+      {/* Top Header / Weather Strip */}
+      <WeatherStrip />
+
+      <header className="pt-6 pb-6 px-4 md:px-8 max-w-7xl mx-auto flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-indigo-400">
             CommuteMind
@@ -162,10 +167,12 @@ export default function HomeScreen() {
           </motion.section>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           {/* Left Column: Search & Feed */}
-          <div className="lg:col-span-1 space-y-6">
+          <div className="lg:col-span-4 space-y-6">
             <RouteSearch />
+            <SavedCommutes />
+            <JourneyHistory />
             
             <div className="bg-white/5 border border-white/10 p-5 rounded-2xl backdrop-blur-xl">
               <h3 className="font-bold flex items-center text-gray-200 mb-4">
@@ -186,25 +193,12 @@ export default function HomeScreen() {
                   </div>
                   <p className="text-sm text-gray-400">Multiple train bunching detected between KLCC and Pasar Seni.</p>
                 </motion.div>
-                
-                <motion.div 
-                  initial={shouldReduceMotion ? false : { x: -20, opacity: 0 }}
-                  animate={{ x: 0, opacity: 1 }}
-                  transition={{ delay: 0.2 }}
-                  className="bg-white/5 border border-white/5 p-3 rounded-xl hover:bg-white/10 transition-colors"
-                >
-                  <div className="flex justify-between items-start mb-1">
-                    <span className="font-semibold text-emerald-300">MRT Kajang</span>
-                    <span className="text-xs bg-emerald-500/20 text-emerald-300 px-2 py-1 rounded-md font-bold">Clear</span>
-                  </div>
-                  <p className="text-sm text-gray-400">Operating at normal historical speeds.</p>
-                </motion.div>
               </div>
             </div>
           </div>
 
           {/* Right Column: Interactive Map */}
-          <div className="lg:col-span-2">
+          <div className="lg:col-span-8">
             <TransitMap />
           </div>
         </div>

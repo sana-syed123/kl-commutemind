@@ -5,11 +5,12 @@ import { useAppStore } from '../../store/useAppStore';
 import { useReducedMotion } from 'framer-motion';
 import { STATION_DATA, LINE_COLORS } from '../../utils/stations';
 import { MapPin } from 'lucide-react';
+import StationModal from './StationModal';
 
 const MAP_STYLE = 'https://api.maptiler.com/maps/dataviz-dark/style.json?key=uDK7Vygt60kPbYEV68kD';
 
 export default function TransitMap() {
-  const { routes, selectedRouteKey } = useAppStore();
+  const { routes, selectedRouteKey, setSelectedStationId } = useAppStore();
   const shouldReduceMotion = useReducedMotion();
   const mapRef = useRef<any>(null);
 
@@ -152,7 +153,6 @@ export default function TransitMap() {
 
         {/* Render Station Label Markers */}
         {mapData?.stations.map((station, i) => {
-          // Don't render A/B markers as regular station markers
           if (i === 0 || i === mapData.stations.length - 1) return null;
           
           return (
@@ -161,8 +161,12 @@ export default function TransitMap() {
               longitude={station.lng} 
               latitude={station.lat} 
               anchor="center"
+              onClick={(e) => {
+                e.originalEvent.stopPropagation();
+                setSelectedStationId(station.id);
+              }}
             >
-              <div className="flex items-center">
+              <div className="flex items-center cursor-pointer hover:scale-110 transition-transform">
                 <div className="w-3 h-3 bg-white rounded-full border-2 border-black z-10" />
                 <div className="ml-1 px-1.5 py-0.5 bg-black/60 backdrop-blur-sm rounded text-[10px] font-bold text-white border border-white/10 whitespace-nowrap">
                   {station.name}
@@ -204,6 +208,8 @@ export default function TransitMap() {
           Live Traffic Active
         </div>
       </div>
+
+      <StationModal />
     </div>
   );
 }

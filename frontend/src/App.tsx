@@ -1,7 +1,11 @@
 import { useEffect } from 'react';
 import HomeScreen from './components/Home/HomeScreen';
+import WelcomeScreen from './components/Onboarding/WelcomeScreen';
+import { useAppStore } from './store/useAppStore';
 
 function App() {
+  const { hasVisited } = useAppStore();
+
   useEffect(() => {
     // Register Service Worker for Push Notifications
     if ('serviceWorker' in navigator) {
@@ -19,7 +23,10 @@ function App() {
   }, []);
 
   return (
-    <HomeScreen />
+    <>
+      {!hasVisited && <WelcomeScreen />}
+      <HomeScreen />
+    </>
   );
 }
 
