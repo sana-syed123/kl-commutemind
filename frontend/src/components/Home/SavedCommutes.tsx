@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { Bookmark, Clock, ArrowRight, Play } from 'lucide-react';
+import { Bookmark, ArrowRight, Play } from 'lucide-react';
 import { useAppStore } from '../../store/useAppStore';
 
 export default function SavedCommutes() {
