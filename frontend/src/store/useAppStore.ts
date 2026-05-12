@@ -18,8 +18,8 @@ export interface TripRecord {
 }
 
 interface AppState {
-  hasVisited: boolean;
-  setHasVisited: (visited: boolean) => void;
+  hasSeenWelcomeV2: boolean;
+  setHasSeenWelcomeV2: (visited: boolean) => void;
   savedCommute: { origin: string; destination: string; } | null;
   setSavedCommute: (commute: { origin: string; destination: string; } | null) => void;
   nlQuery: string;
@@ -39,8 +39,8 @@ interface AppState {
 export const useAppStore = create<AppState>()(
   persist(
     (set) => ({
-      hasVisited: false,
-      setHasVisited: (visited) => set({ hasVisited: visited }),
+      hasSeenWelcomeV2: false,
+      setHasSeenWelcomeV2: (visited) => set({ hasSeenWelcomeV2: visited }),
       savedCommute: { origin: 'KLCC', destination: 'Mid Valley' },
       setSavedCommute: (commute) => set({ savedCommute: commute }),
       nlQuery: '',
@@ -62,7 +62,7 @@ export const useAppStore = create<AppState>()(
     {
       name: 'commutemind-storage', // unique name
       storage: createJSONStorage(() => localStorage),
-      partialize: (state) => ({ hasVisited: state.hasVisited, journeyHistory: state.journeyHistory }),
+      partialize: (state) => ({ hasSeenWelcomeV2: state.hasSeenWelcomeV2, journeyHistory: state.journeyHistory }),
     }
   )
 );

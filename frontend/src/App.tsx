@@ -1,10 +1,11 @@
 import { useEffect } from 'react';
+import { AnimatePresence } from 'framer-motion';
 import HomeScreen from './components/Home/HomeScreen';
 import WelcomeScreen from './components/Onboarding/WelcomeScreen';
 import { useAppStore } from './store/useAppStore';
 
 function App() {
-  const { hasVisited } = useAppStore();
+  const { hasSeenWelcomeV2 } = useAppStore();
 
   useEffect(() => {
     // Register Service Worker for Push Notifications
@@ -24,7 +25,9 @@ function App() {
 
   return (
     <>
-      {!hasVisited && <WelcomeScreen />}
+      <AnimatePresence>
+        {!hasSeenWelcomeV2 && <WelcomeScreen key="welcome" />}
+      </AnimatePresence>
       <HomeScreen />
     </>
   );

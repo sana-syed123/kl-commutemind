@@ -75,7 +75,7 @@ const KL_TRANSIT_SVG = (
 );
 
 export default function WelcomeScreen() {
-  const { setHasVisited } = useAppStore();
+  const { setHasSeenWelcomeV2 } = useAppStore();
   const [slide, setSlide] = useState(0);
 
   // Auto-advance slides
@@ -88,11 +88,16 @@ export default function WelcomeScreen() {
 
   const handleStart = () => {
     // Trigger transition out
-    setHasVisited(true);
+    setHasSeenWelcomeV2(true);
   };
 
   return (
-    <div className="fixed inset-0 bg-[#0F1117] z-[100] flex flex-col items-center justify-center overflow-hidden">
+    <motion.div 
+      initial={{ opacity: 1 }}
+      exit={{ opacity: 0, y: -50 }}
+      transition={{ duration: 0.5 }}
+      className="fixed inset-0 bg-[#0F1117] z-[9999] flex flex-col items-center justify-center overflow-hidden"
+    >
       
       {/* Background Animated Map */}
       <div className="absolute inset-0 pointer-events-none flex items-center justify-center p-10 opacity-60">
@@ -164,6 +169,6 @@ export default function WelcomeScreen() {
         </motion.button>
 
       </div>
-    </div>
+    </motion.div>
   );
 }
