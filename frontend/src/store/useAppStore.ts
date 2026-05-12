@@ -21,6 +21,8 @@ interface AppState {
   setNlQuery: (query: string) => void;
   routes: Record<string, RouteVariant> | null;
   setRoutes: (routes: Record<string, RouteVariant> | null) => void;
+  selectedRouteKey: string | null;
+  setSelectedRouteKey: (key: string | null) => void;
   isRouting: boolean;
   setIsRouting: (isRouting: boolean) => void;
 }
@@ -31,7 +33,9 @@ export const useAppStore = create<AppState>((set) => ({
   nlQuery: '',
   setNlQuery: (query) => set({ nlQuery: query }),
   routes: null,
-  setRoutes: (routes) => set({ routes }),
+  setRoutes: (routes) => set({ routes, selectedRouteKey: null }), // Reset selection on new routes
+  selectedRouteKey: null,
+  setSelectedRouteKey: (key) => set({ selectedRouteKey: key }),
   isRouting: false,
   setIsRouting: (isRouting) => set({ isRouting }),
 }));

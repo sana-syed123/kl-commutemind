@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { useAppStore } from '../../store/useAppStore';
-import { Search, Loader2, Mic, MicOff, Train, Leaf, DollarSign } from 'lucide-react';
+import { Search, Loader2, Mic, MicOff, Train, Leaf, MapPin, Footprints } from 'lucide-react';
 import { cn } from '../../utils/cn';
+import { STATION_DATA, getLineName, LINE_COLORS } from '../../utils/stations';
 
-const STATIONS = ['KLCC', 'Pasar Seni', 'Bukit Bintang', 'Kepong Baru', 'Mid Valley', 'Titiwangsa', 'Chow Kit'];
+const STATIONS = Object.keys(STATION_DATA).map(k => STATION_DATA[k].name);
 const PLACEHOLDERS = [
   "nak pergi Midvalley dari Chow Kit elak LRT",
   "fastest route from KLCC to Pasar Seni",
@@ -12,9 +13,8 @@ const PLACEHOLDERS = [
 ];
 
 export default function RouteSearch() {
-  const { nlQuery, setNlQuery, routes, setRoutes, setIsRouting, isRouting } = useAppStore();
+  const { nlQuery, setNlQuery, routes, setRoutes, setIsRouting, isRouting, selectedRouteKey, setSelectedRouteKey } = useAppStore();
   const shouldReduceMotion = useReducedMotion();
-  const [error, setError] = useState('');
   const [fallbackMode, setFallbackMode] = useState(false);
   const [origin, setOrigin] = useState('');
   const [destination, setDestination] = useState('');
@@ -22,7 +22,6 @@ export default function RouteSearch() {
   const [isListening, setIsListening] = useState(false);
   const recognitionRef = useRef<any>(null);
 
-  // Animated placeholder
   useEffect(() => {
     if (fallbackMode) return;
     const interval = setInterval(() => {
@@ -31,14 +30,13 @@ export default function RouteSearch() {
     return () => clearInterval(interval);
   }, [fallbackMode]);
 
-  // Web Speech API initialization
   useEffect(() => {
     if ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window) {
       const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
       const recognition = new SpeechRecognition();
       recognition.continuous = false;
       recognition.interimResults = false;
-      recognition.lang = 'en-MY'; // Malaysian English / Malay support
+      recognition.lang = 'en-MY';
 
       recognition.onresult = (event: any) => {
         const transcript = event.results[0][0].transcript;
@@ -64,7 +62,7 @@ export default function RouteSearch() {
       recognitionRef.current?.stop();
       setIsListening(false);
     } else {
-      setNlQuery(''); // Clear previous query
+      setNlQuery(''); 
       recognitionRef.current?.start();
       setIsListening(true);
     }
@@ -73,7 +71,6 @@ export default function RouteSearch() {
   const handleNlSearch = async () => {
     if (!nlQuery.trim()) return;
     setIsRouting(true);
-    setError('');
     
     try {
       const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
@@ -95,11 +92,10 @@ export default function RouteSearch() {
       }
     } catch (err) {
       console.warn('NLP API unreachable. Using intelligent mock fallback for demo purposes.', err);
-      // Fallback for Manglish demo query
       if (nlQuery.toLowerCase().includes('midvalley') || nlQuery.toLowerCase().includes('chow kit')) {
         setTimeout(() => fetchRoutes('KJ10', 'KG18A'), 800);
       } else {
-        setError('NLP failed. Falling back to manual search.');
+        // Silently fallback without showing error banner
         setFallbackMode(true);
         setIsRouting(false);
       }
@@ -118,12 +114,12 @@ export default function RouteSearch() {
       const data = await res.json();
       if (data.status === 'success') {
         setRoutes(data.routes);
+        setSelectedRouteKey('fastest'); // Auto-select first route
       }
     } catch (err) {
       console.warn('Routing API unreachable. Loading mock route data for demo.', err);
-      // Demo mock routes
       setTimeout(() => {
-        setRoutes({
+        const mockRoutes = {
           fastest: {
             variant: "fastest",
             total_time_mins: 25.5,
@@ -145,22 +141,123 @@ export default function RouteSearch() {
             walking_time_mins: 2.0,
             path: ["KJ10_KJ", "KJ14_KJ", "KG16_KG", "KG18A_KG"]
           }
-        });
+        };
+        setRoutes(mockRoutes);
+        setSelectedRouteKey('fastest'); // Auto-select
         setIsRouting(false);
       }, 1000);
-      return; // Skip setting error state
+      return; 
     } finally {
-      // If we didn't return early from the catch block, we end routing here
       setTimeout(() => setIsRouting(false), 500);
     }
   };
 
   const hasSpeechSupport = !!recognitionRef.current;
 
+  // Helper to generate turn-by-turn directions from path
+  const renderDirections = (route: any) => {
+    const pathNodes = route.path;
+    const steps = [];
+    
+    // Group adjacent nodes on the same line
+    let currentLine = null;
+    let currentStops = [];
+    
+    for (let i = 0; i < pathNodes.length; i++) {
+      const parts = pathNodes[i].split('_');
+      const stopId = parts[0];
+      const lineId = parts[1] || 'walk';
+      
+      if (lineId !== currentLine && currentStops.length > 0) {
+        steps.push({ line: currentLine, stops: currentStops });
+        currentStops = [];
+      }
+      currentLine = lineId;
+      currentStops.push(stopId);
+    }
+    if (currentStops.length > 0) {
+      steps.push({ line: currentLine, stops: currentStops });
+    }
+
+    return (
+      <div className="mt-4 p-4 bg-black/40 rounded-xl border border-white/5 relative overflow-hidden">
+        {/* Directions Header Summary */}
+        <div className="flex items-center justify-between mb-4 pb-3 border-b border-white/10">
+          <div className="text-sm font-bold text-white">Route Details</div>
+          <div className="flex space-x-3 text-xs text-gray-400 font-medium">
+            <span>{Math.round(route.total_time_mins)} min</span>
+            <span>•</span>
+            <span>{pathNodes.length - 1} stops</span>
+            <span>•</span>
+            <span className="text-emerald-400 font-bold">RM 2.40</span>
+          </div>
+        </div>
+
+        {/* Turn-by-turn Steps */}
+        <div className="space-y-0 relative">
+          <div className="absolute left-[15px] top-2 bottom-6 w-0.5 bg-white/10" />
+          
+          {steps.map((step, idx) => {
+            const startStop = STATION_DATA[step.stops[0]];
+            const endStop = STATION_DATA[step.stops[step.stops.length - 1]];
+            const startName = startStop ? startStop.name : step.stops[0];
+            const endName = endStop ? endStop.name : step.stops[step.stops.length - 1];
+            
+            const isWalk = step.line === 'walk';
+            const color = LINE_COLORS[step.line] || LINE_COLORS.default;
+            
+            return (
+              <div key={idx} className="relative flex items-start pb-6">
+                <div className="w-8 flex-shrink-0 flex justify-center z-10 pt-1">
+                  <div 
+                    className="w-4 h-4 rounded-full border-2 border-[#0F1117] flex items-center justify-center"
+                    style={{ backgroundColor: isWalk ? '#fff' : color }}
+                  >
+                    <div className="w-1.5 h-1.5 bg-[#0F1117] rounded-full" />
+                  </div>
+                </div>
+                <div className="ml-3 flex-1 pt-0.5">
+                  <div className="text-sm font-bold text-gray-100 flex items-center">
+                    {isWalk ? (
+                      <Footprints className="w-4 h-4 mr-2 opacity-70" />
+                    ) : (
+                      <Train className="w-4 h-4 mr-2" style={{ color }} />
+                    )}
+                    {isWalk ? `Walk to ${endName}` : `Take ${getLineName(step.line)}`}
+                  </div>
+                  {!isWalk && (
+                    <div className="text-xs text-gray-400 mt-1">
+                      From <span className="text-gray-300 font-semibold">{startName}</span> to <span className="text-gray-300 font-semibold">{endName}</span>
+                      <span className="ml-2 px-1.5 py-0.5 bg-white/10 rounded text-[10px] uppercase font-bold tracking-widest">{step.stops.length - 1} stops</span>
+                    </div>
+                  )}
+                  {isWalk && (
+                    <div className="text-xs text-gray-500 mt-1">
+                      {Math.round(route.walking_time_mins)} min walk
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+          
+          {/* Destination Pin */}
+          <div className="relative flex items-center">
+             <div className="w-8 flex-shrink-0 flex justify-center z-10">
+               <MapPin className="w-5 h-5 text-rose-500 fill-rose-500/20" />
+             </div>
+             <div className="ml-3 text-sm font-bold text-white">
+               Arrive at Destination
+             </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="w-full">
       <div className="bg-white/5 backdrop-blur-2xl p-5 rounded-3xl shadow-2xl border border-white/10 relative overflow-hidden">
-        {/* Glow effect */}
         <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 opacity-50" />
 
         <h2 className="text-xl font-bold mb-5 text-white flex items-center">
@@ -168,11 +265,9 @@ export default function RouteSearch() {
           Where to?
         </h2>
         
-        {error && <div className="text-rose-400 text-sm mb-4 bg-rose-500/10 p-3 rounded-xl border border-rose-500/20">{error}</div>}
-
+        {/* Silently fall back to manual entry without error banner */}
         {!fallbackMode ? (
           <div className="relative group">
-            {/* Animated Placeholder */}
             {!nlQuery && !isListening && (
               <div className="absolute left-12 top-4 pointer-events-none overflow-hidden h-6 w-3/4">
                 <AnimatePresence mode="wait">
@@ -259,7 +354,7 @@ export default function RouteSearch() {
               {isRouting ? <Loader2 className="animate-spin w-5 h-5" /> : 'Find Routes'}
             </button>
             <button 
-              onClick={() => { setFallbackMode(false); setError(''); }}
+              onClick={() => { setFallbackMode(false); }}
               className="w-full text-indigo-400 text-sm mt-2 hover:text-indigo-300 hover:underline"
             >
               Try AI Search again
@@ -275,53 +370,75 @@ export default function RouteSearch() {
           animate={{ opacity: 1, y: 0 }}
           className="mt-6 space-y-4"
         >
-          <h3 className="text-gray-400 font-semibold uppercase tracking-wider text-xs">Recommended Routes</h3>
+          <h3 className="text-gray-400 font-semibold uppercase tracking-wider text-xs px-2">Recommended Routes</h3>
           
-          {(Object.entries(routes) as Array<[string, any]>).map(([key, route]) => (
-            <motion.div 
-              key={key}
-              whileHover={shouldReduceMotion ? {} : { scale: 1.02, y: -2 }}
-              whileTap={shouldReduceMotion ? {} : { scale: 0.98 }}
-              className="bg-white/5 border border-white/10 rounded-2xl p-4 cursor-pointer hover:bg-white/10 transition-colors"
-            >
-              <div className="flex justify-between items-start mb-3">
-                <div className="flex items-center space-x-2">
-                  <span className={cn(
-                    "px-2 py-1 rounded text-xs font-black uppercase tracking-wider",
-                    key === 'fastest' ? 'bg-indigo-500/20 text-indigo-300' : 
-                    key === 'fewest_transfers' ? 'bg-emerald-500/20 text-emerald-300' : 
-                    'bg-amber-500/20 text-amber-300'
-                  )}>
-                    {key.replace('_', ' ')}
-                  </span>
-                  <span className="text-white font-bold">{Math.round(route.total_time_mins)} min</span>
-                </div>
-                
-                {/* Disruption Probability Bar */}
-                <div className="w-24">
-                  <div className="flex justify-between text-[10px] text-gray-500 mb-1 font-bold">
-                    <span>Delay Risk</span>
-                    <span className="text-rose-400">Low</span>
-                  </div>
-                  <div className="h-1.5 w-full bg-black/50 rounded-full overflow-hidden">
-                    <motion.div 
-                      initial={{ width: 0 }}
-                      animate={{ width: '20%' }}
-                      transition={{ duration: 1 }}
-                      className="h-full bg-gradient-to-r from-emerald-500 to-emerald-400"
-                    />
-                  </div>
-                </div>
-              </div>
+          {(Object.entries(routes) as Array<[string, any]>).map(([key, route]) => {
+            const isSelected = selectedRouteKey === key;
+            return (
+              <div key={key}>
+                <motion.div 
+                  whileHover={shouldReduceMotion ? {} : { scale: 1.01, y: -1 }}
+                  whileTap={shouldReduceMotion ? {} : { scale: 0.99 }}
+                  onClick={() => setSelectedRouteKey(key)}
+                  className={cn(
+                    "bg-white/5 border rounded-2xl p-4 cursor-pointer transition-colors relative overflow-hidden",
+                    isSelected ? "border-indigo-500 bg-indigo-500/10 shadow-[0_0_20px_rgba(99,102,241,0.1)]" : "border-white/10 hover:bg-white/10"
+                  )}
+                >
+                  {/* Selected Indicator line */}
+                  {isSelected && <div className="absolute left-0 top-0 bottom-0 w-1 bg-indigo-500" />}
 
-              {/* Badges */}
-              <div className="flex space-x-3 text-xs font-medium text-gray-400 mt-4 border-t border-white/5 pt-4">
-                <span className="flex items-center"><Train className="w-3.5 h-3.5 mr-1 text-indigo-400"/> {route.transfers} Transfers</span>
-                <span className="flex items-center"><Leaf className="w-3.5 h-3.5 mr-1 text-emerald-400"/> 0.8kg CO₂ saved</span>
-                <span className="flex items-center"><DollarSign className="w-3.5 h-3.5 mr-1 text-amber-400"/> RM 2.40</span>
+                  <div className="flex justify-between items-start mb-3 pl-1">
+                    <div className="flex items-center space-x-2">
+                      <span className={cn(
+                        "px-2 py-1 rounded text-xs font-black uppercase tracking-wider",
+                        key === 'fastest' ? 'bg-indigo-500/20 text-indigo-300' : 
+                        key === 'fewest_transfers' ? 'bg-emerald-500/20 text-emerald-300' : 
+                        'bg-amber-500/20 text-amber-300'
+                      )}>
+                        {key.replace('_', ' ')}
+                      </span>
+                      <span className="text-white font-bold">{Math.round(route.total_time_mins)} min</span>
+                    </div>
+                    
+                    <div className="w-24">
+                      <div className="flex justify-between text-[10px] text-gray-500 mb-1 font-bold">
+                        <span>Delay Risk</span>
+                        <span className="text-rose-400">Low</span>
+                      </div>
+                      <div className="h-1.5 w-full bg-black/50 rounded-full overflow-hidden">
+                        <motion.div 
+                          initial={{ width: 0 }}
+                          animate={{ width: '20%' }}
+                          transition={{ duration: 1 }}
+                          className="h-full bg-gradient-to-r from-emerald-500 to-emerald-400"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex space-x-3 text-xs font-medium text-gray-400 mt-4 border-t border-white/5 pt-4 pl-1">
+                    <span className="flex items-center"><Train className="w-3.5 h-3.5 mr-1 text-indigo-400"/> {route.transfers} Transfers</span>
+                    <span className="flex items-center"><Leaf className="w-3.5 h-3.5 mr-1 text-emerald-400"/> 0.8kg CO₂</span>
+                  </div>
+                </motion.div>
+                
+                {/* Expand detailed turn-by-turn if selected */}
+                <AnimatePresence>
+                  {isSelected && (
+                    <motion.div
+                      initial={shouldReduceMotion ? { opacity: 0 } : { height: 0, opacity: 0 }}
+                      animate={shouldReduceMotion ? { opacity: 1 } : { height: 'auto', opacity: 1 }}
+                      exit={shouldReduceMotion ? { opacity: 0 } : { height: 0, opacity: 0 }}
+                      className="overflow-hidden"
+                    >
+                      {renderDirections(route)}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
-            </motion.div>
-          ))}
+            );
+          })}
         </motion.div>
       )}
     </div>
