@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 import asyncio
-from app.routers import routes, nlp
+from app.routers import routes, nlp, stops, ors
 from app.workers.gtfs_poller import start_gtfs_poller
 
 @asynccontextmanager
@@ -30,7 +30,9 @@ app.add_middleware(
 )
 
 app.include_router(routes.router, prefix="/api/routes", tags=["routing"])
+app.include_router(ors.router, prefix="/api/routes/ors", tags=["routing"])
 app.include_router(nlp.router, prefix="/api/nl", tags=["nlp"])
+app.include_router(stops.router, prefix="/api/stops", tags=["stops"])
 
 @app.get("/")
 def read_root():

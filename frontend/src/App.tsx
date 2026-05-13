@@ -2,12 +2,17 @@ import { useEffect } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import HomeScreen from './components/Home/HomeScreen';
 import WelcomeScreen from './components/Onboarding/WelcomeScreen';
+import ToastContainer from './components/UI/ToastContainer';
 import { useAppStore } from './store/useAppStore';
 
 function App() {
-  const { hasSeenWelcomeV2 } = useAppStore();
+  const { hasSeenWelcomeV2, fetchStations, stationsData } = useAppStore();
 
   useEffect(() => {
+    if (!stationsData) {
+      fetchStations();
+    }
+    
     // Register Service Worker for Push Notifications
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('/sw.js').then((registration) => {
@@ -29,6 +34,7 @@ function App() {
         {!hasSeenWelcomeV2 && <WelcomeScreen key="welcome" />}
       </AnimatePresence>
       <HomeScreen />
+      <ToastContainer />
     </>
   );
 }

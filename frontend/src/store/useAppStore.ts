@@ -17,6 +17,14 @@ export interface TripRecord {
   delayTags?: string[];
 }
 
+export interface StationData {
+  id: string;
+  name: string;
+  lat: number;
+  lng: number;
+  lines: string[];
+}
+
 interface AppState {
   hasSeenWelcomeV2: boolean;
   setHasSeenWelcomeV2: (visited: boolean) => void;
@@ -34,6 +42,9 @@ interface AppState {
   addJourney: (trip: TripRecord) => void;
   selectedStationId: string | null;
   setSelectedStationId: (id: string | null) => void;
+  stationsData: Record<string, StationData> | null;
+  isStationsLoading: boolean;
+  fetchStations: () => Promise<void>;
 }
 
 export const useAppStore = create<AppState>()(
@@ -58,6 +69,26 @@ export const useAppStore = create<AppState>()(
       }),
       selectedStationId: null,
       setSelectedStationId: (id) => set({ selectedStationId: id }),
+      stationsData: null,
+      isStationsLoading: false,
+      fetchStations: async () => {
+        set({ isStationsLoading: true });
+        try {
+          const res = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'}/api/stops`);
+          if (!res.ok) throw new Error('Failed to fetch stations');
+          const data = await res.json();
+          
+          const stationsMap: Record<string, StationData> = {};
+          data.stations.forEach((s: any) => {
+            stationsMap[s.name] = s; // Use name as key for better mapping in dropdowns later
+          });
+          
+          set({ stationsData: stationsMap, isStationsLoading: false });
+        } catch (error) {
+          console.error("Error fetching GTFS stations:", error);
+          set({ isStationsLoading: false });
+        }
+      },
     }),
     {
       name: 'commutemind-storage', // unique name

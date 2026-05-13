@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
 import { Bookmark, ArrowRight, Play } from 'lucide-react';
 import { useAppStore } from '../../store/useAppStore';
+import { useToast } from '../../hooks/useToast';
 
 export default function SavedCommutes() {
   const { savedCommute, setIsRouting, setNlQuery } = useAppStore();
+  const { toast } = useToast();
   const [countdown, setCountdown] = useState(7 * 60); // 7 mins in seconds
 
   useEffect(() => {
@@ -43,7 +45,7 @@ export default function SavedCommutes() {
             onClick={() => {
               setNlQuery(`route from ${savedCommute.origin} to ${savedCommute.destination}`);
               setIsRouting(true);
-              // Mock triggering a search in RouteSearch
+              toast('Journey Started! Tracking enabled.', 'success');
             }}
             className="flex items-center text-xs font-bold bg-white text-black px-3 py-2 rounded-lg hover:bg-gray-200 transition"
           >
