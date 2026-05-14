@@ -4,6 +4,7 @@ import HomeScreen from './components/Home/HomeScreen';
 import WelcomeScreen from './components/Onboarding/WelcomeScreen';
 import ToastContainer from './components/UI/ToastContainer';
 import { useAppStore } from './store/useAppStore';
+import { loadStationsFromAPI } from './utils/stations';
 
 function App() {
   const { hasSeenWelcomeV2, fetchStations, stationsData } = useAppStore();
@@ -11,6 +12,7 @@ function App() {
   useEffect(() => {
     if (!stationsData) {
       fetchStations();
+      loadStationsFromAPI();
     }
     
     // Register Service Worker for Push Notifications
