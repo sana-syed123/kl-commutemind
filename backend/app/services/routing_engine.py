@@ -33,6 +33,10 @@ class RoutingEngine:
         logger.info("Building NetworkX graph...")
         
         # 1. Merge to find which route each stop_time belongs to
+        # stop_times may already have a route_id column (from Prasarana GTFS).
+        # We prefer the route_id from trips.txt (which matches stops.txt format: AG, KJ, etc.)
+        if 'route_id' in stop_times.columns:
+            stop_times = stop_times.drop(columns=['route_id'])
         st_trips = stop_times.merge(trips[['trip_id', 'route_id']], on='trip_id', how='inner')
         st_trips['stop_sequence'] = pd.to_numeric(st_trips['stop_sequence'])
         st_trips = st_trips.sort_values(['trip_id', 'stop_sequence'])

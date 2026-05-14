@@ -7,7 +7,7 @@ import { STATION_DATA, LINE_COLORS } from '../../utils/stations';
 import { MapPin } from 'lucide-react';
 import StationModal from './StationModal';
 
-const MAP_STYLE = 'https://api.maptiler.com/maps/dataviz-dark/style.json?key=uDK7Vygt60kPbYEV68kD';
+const MAP_STYLE = 'https://api.maptiler.com/maps/streets-v2-dark/style.json?key=uDK7Vygt60kPbYEV68kD';
 
 export default function TransitMap() {
   const { routes, selectedRouteKey, setSelectedStationId } = useAppStore();
