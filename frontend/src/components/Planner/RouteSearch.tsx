@@ -103,7 +103,7 @@ export default function RouteSearch() {
 
   // Tabs
   const [activeTab, setActiveTab] = useState<'transit' | 'walk' | 'drive'>('transit');
-  const [orsRoute, setOrsRoute] = useState<{distance: number, duration: number, is_mock: boolean} | null>(null);
+  const [orsRoute, setOrsRoute] = useState<{distance: number, duration: number, is_mock: boolean, steps: {instruction: string, distance: number, duration: number}[]} | null>(null);
   const [isOrsRouting, setIsOrsRouting] = useState(false);
 
   useEffect(() => {
@@ -260,7 +260,7 @@ export default function RouteSearch() {
       });
       if (!res.ok) throw new Error('ORS API failed');
       const data = await res.json();
-      setOrsRoute({
+      const orsJson = await res.json(); const feature = orsJson.data.features[0]; const steps = feature?.properties?.segments?.[0]?.steps || []; setOrsRoute({steps,
         distance: data.data.features[0].properties.summary.distance,
         duration: data.data.features[0].properties.summary.duration,
         is_mock: data.is_mock
@@ -683,3 +683,6 @@ export default function RouteSearch() {
     </div>
   );
 }
+
+
+
