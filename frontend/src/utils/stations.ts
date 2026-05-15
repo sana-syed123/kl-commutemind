@@ -19,7 +19,7 @@ export async function loadStationsFromAPI(baseUrl = 'http://127.0.0.1:8000') {
   try {
     const res = await fetch(`${baseUrl}/api/stops`);
     if (!res.ok) throw new Error('API error');
-    const stops: Array<{ id: string; name: string; lat: number; lng: number; lines: string[] }> = await res.json();
+    const json = await res.json(); const stops: Array<{ id: string; name: string; lat: number; lng: number; lines: string }> = json.stations || json;
     stops.forEach(stop => {
       _stationCache[stop.id] = { name: stop.name, lat: stop.lat, lng: stop.lng };
     });
