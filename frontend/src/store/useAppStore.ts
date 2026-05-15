@@ -79,8 +79,9 @@ export const useAppStore = create<AppState>()(
           const data = await res.json();
           
           const stationsMap: Record<string, StationData> = {};
-          data.stations.forEach((s: any) => {
-            stationsMap[s.name] = s; // Use name as key for better mapping in dropdowns later
+          const stationsList = data.stations || data;
+          stationsList.forEach((s: any) => {
+            stationsMap[s.stop_id] = s;
           });
           
           set({ stationsData: stationsMap, isStationsLoading: false });
@@ -97,3 +98,5 @@ export const useAppStore = create<AppState>()(
     }
   )
 );
+
+

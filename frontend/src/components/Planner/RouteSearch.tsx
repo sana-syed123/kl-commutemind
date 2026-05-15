@@ -45,7 +45,7 @@ function StationCombobox({ label, value, onChange, stationsData }: any) {
       <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">{label}</label>
       <input
         type="text"
-        value={isOpen ? search : value}
+        value={isOpen ? search : (value && stationsData && stationsData[value] ? stationsData[value].name : '')}
         onChange={(e) => { setSearch(e.target.value); setIsOpen(true); onChange(''); }}
         onFocus={() => { setIsOpen(true); setSearch(''); }}
         className="w-full p-3 bg-black/40 border border-white/10 rounded-xl text-white focus:outline-none focus:border-indigo-500 transition-colors placeholder-gray-600"
@@ -70,8 +70,8 @@ function StationCombobox({ label, value, onChange, stationsData }: any) {
                   </div>
                   {stations.map(s => (
                     <div 
-                      key={s.name}
-                      onClick={() => { onChange(s.name); setIsOpen(false); }}
+                      key={s.stop_id}
+                      onClick={() => { onChange(s.stop_id); setIsOpen(false); }}
                       className="px-4 py-2.5 text-sm text-gray-200 hover:bg-white/5 cursor-pointer transition-colors"
                     >
                       {s.name}
@@ -259,12 +259,15 @@ export default function RouteSearch() {
         })
       });
       if (!res.ok) throw new Error('ORS API failed');
-      const data = await res.json();
-      const orsJson = await res.json(); const feature = orsJson.data.features[0]; const steps = feature?.properties?.segments?.[0]?.steps || []; setOrsRoute({steps,
-        distance: data.data.features[0].properties.summary.distance,
-        duration: data.data.features[0].properties.summary.duration,
-        is_mock: data.is_mock
-      });
+       const data = await res.json();
+       const feature = data.data.features[0];
+       const steps = feature?.properties?.segments?.[0]?.steps || [];
+       setOrsRoute({
+         steps,
+         distance: data.data.features[0].properties.summary.distance,
+         duration: data.data.features[0].properties.summary.duration,
+         is_mock: data.is_mock
+       });
     } catch(e) {
       toast("Failed to fetch walking/driving route", "error");
       console.error(e);
