@@ -48,20 +48,63 @@ def get_ors_route(req: RouteRequest):
         except Exception as e:
             print(f"ORS API request failed: {e}. Falling back to mock data.")
 
-    # Fallback to mock data
+    # Fallback to mock data with realistic turn‑by‑turn instructions
     lon1, lat1 = req.origin
     lon2, lat2 = req.destination
     
     distance_km = haversine(lat1, lon1, lat2, lon2)
     
     if req.profile == "driving-car":
-        speed_kmh = 40.0 # Average KL traffic
+        speed_kmh = 40.0  # Average KL traffic speed
     else:
-        speed_kmh = 5.0 # Walking speed
-        
+        speed_kmh = 5.0   # Walking speed
+    
     duration_hrs = distance_km / speed_kmh
     duration_secs = duration_hrs * 3600
     distance_m = distance_km * 1000
+    
+    # Compute bearing from origin to destination (in degrees)
+    import math as _m
+    d_lon = _m.radians(lon2 - lon1)
+    lat1_r = _m.radians(lat1)
+    lat2_r = _m.radians(lat2)
+    y = _m.sin(d_lon) * _m.cos(lat2_r)
+    x = _m.cos(lat1_r) * _m.sin(lat2_r) - _m.sin(lat1_r) * _m.cos(lat2_r) * _m.cos(d_lon)
+    bearing = (_m.degrees(_m.atan2(y, x)) + 360) % 360
+    
+    # Map bearing to a realistic KL road name
+    def _road_name(b):
+        if 0 <= b < 45 or 315 <= b <= 360:
+            return "Jalan Ampang"
+        elif 45 <= b < 135:
+            return "Jalan Bukit Bintang"
+        elif 135 <= b < 225:
+            return "Jalan Duta"
+        else:
+            return "DUKE Highway"
+    
+    road = _road_name(bearing)
+    
+    # Create a simple three‑step mock instruction set
+    segment_distance = distance_m / 3
+    segment_duration = duration_secs / 3
+    steps = [
+        {
+            "instruction": f"Head towards {road} from your starting point",
+            "distance": segment_distance,
+            "duration": segment_duration,
+        },
+        {
+            "instruction": f"Continue on {road} for a short distance",
+            "distance": segment_distance,
+            "duration": segment_duration,
+        },
+        {
+            "instruction": f"Arrive at your destination via {road}",
+            "distance": segment_distance,
+            "duration": segment_duration,
+        },
+    ]
     
     return {
         "status": "success",
@@ -71,15 +114,16 @@ def get_ors_route(req: RouteRequest):
                 "properties": {
                     "summary": {
                         "distance": distance_m,
-                        "duration": duration_secs
-                    }
+                        "duration": duration_secs,
+                    },
+                    "segments": [{"steps": steps}],
                 },
                 "geometry": {
                     "coordinates": [
                         req.origin,
-                        req.destination
+                        req.destination,
                     ]
-                }
+                },
             }]
-        }
+        },
     }
