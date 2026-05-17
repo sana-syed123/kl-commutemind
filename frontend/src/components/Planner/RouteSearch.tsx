@@ -13,7 +13,7 @@ const PLACEHOLDERS = [
 ];
 
 // Reusable Combobox for Station Selection
-function StationCombobox({ label, value, onChange, stationsData }: any) {
+function StationCombobox({ label, value, onChange, stationsData, stationsByName }: any) {
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState('');
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -45,7 +45,7 @@ function StationCombobox({ label, value, onChange, stationsData }: any) {
       <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">{label}</label>
       <input
         type="text"
-        value={isOpen ? search : (value && stationsData && stationsData[value] ? stationsData[value].name : '')}
+        value={isOpen ? search : (value && stationsByName && stationsByName[value] ? stationsByName[value].name : '')}
         onChange={(e) => { setSearch(e.target.value); setIsOpen(true); onChange(''); }}
         onFocus={() => { setIsOpen(true); setSearch(''); }}
         className="w-full p-3 bg-black/40 border border-white/10 rounded-xl text-white focus:outline-none focus:border-indigo-500 transition-colors placeholder-gray-600"
@@ -71,7 +71,7 @@ function StationCombobox({ label, value, onChange, stationsData }: any) {
                   {stations.map(s => (
                     <div 
                       key={s.stop_id}
-                      onClick={() => { onChange(s.stop_id); setIsOpen(false); }}
+                      onClick={() => { onChange(s.name); setIsOpen(false); }}
                       className="px-4 py-2.5 text-sm text-gray-200 hover:bg-white/5 cursor-pointer transition-colors"
                     >
                       {s.name}
@@ -89,7 +89,7 @@ function StationCombobox({ label, value, onChange, stationsData }: any) {
 
 
 export default function RouteSearch() {
-  const { nlQuery, setNlQuery, routes, setRoutes, setIsRouting, isRouting, selectedRouteKey, setSelectedRouteKey, addJourney, stationsData } = useAppStore();
+  const { nlQuery, setNlQuery, routes, setRoutes, setIsRouting, isRouting, selectedRouteKey, setSelectedRouteKey, addJourney, stationsData, stationsByName, fetchStations } = useAppStore();
   const shouldReduceMotion = useReducedMotion();
   const { toast } = useToast();
   
@@ -106,11 +106,16 @@ export default function RouteSearch() {
   const [orsRoute, setOrsRoute] = useState<{distance: number, duration: number, is_mock: boolean, steps: {instruction: string, distance: number, duration: number}[]} | null>(null);
   const [isOrsRouting, setIsOrsRouting] = useState(false);
 
+  // Ensure stations are loaded on mount
+  useEffect(() => {
+    if (!stationsData) {
+      fetchStations();
+    }
+  }, []);
+
   useEffect(() => {
     if (fallbackMode) return;
-    const interval = setInterval(() => {
-      setPlaceholderIndex((prev) => (prev + 1) % PLACEHOLDERS.length);
-    }, 4000);
+    const interval = setInterval(() => setPlaceholderIndex((prev) => (prev + 1) % PLACEHOLDERS.length), 4000);
     return () => clearInterval(interval);
   }, [fallbackMode]);
 
@@ -170,7 +175,6 @@ export default function RouteSearch() {
       const { origin, destination } = data.parsed_intent;
       
       if (origin && destination) {
-        // Find valid GTFS stops for the extracted names
         fetchRoutes('KJ10', 'KG18A'); 
       } else {
         throw new Error('Could not extract origin/destination');
@@ -244,10 +248,10 @@ export default function RouteSearch() {
     setIsOrsRouting(true);
     setOrsRoute(null);
     try {
-      const origStation = stationsData?.[origin];
-      const destStation = stationsData?.[destination];
-      if (!origStation || !destStation) throw new Error("Select valid origin and destination from dropdown");
-      
+      const origStation = stationsByName?.[origin];
+      const destStation = stationsByName?.[destination];
+      if (!origStation || !destStation) throw new Error('Select valid origin and destination from dropdown');
+
       const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
       const res = await fetch(`${apiBaseUrl}/api/routes/ors`, {
         method: 'POST',
@@ -291,21 +295,21 @@ export default function RouteSearch() {
       toast("Please select Origin and Destination", "error");
       return;
     }
-    const origStation = stationsData?.[origin];
-    const destStation = stationsData?.[destination];
-    if (!origStation || !destStation) {
-      toast("Please select valid stations from the dropdown", "error");
-      return;
-    }
-    
-    if (activeTab === 'transit') {
-      setIsRouting(true); 
-      fetchRoutes(origStation.id, destStation.id);
-    } else if (activeTab === 'walk') {
-      fetchOrsRoute('foot-walking');
-    } else if (activeTab === 'drive') {
-      fetchOrsRoute('driving-car');
-    }
+      const origStation = stationsByName?.[origin];
+      const destStation = stationsByName?.[destination];
+      if (!origStation || !destStation) {
+        toast('Please select valid stations from the dropdown', 'error');
+        return;
+      }
+
+      if (activeTab === 'transit') {
+        setIsRouting(true);
+        fetchRoutes(origStation.id, destStation.id);
+      } else if (activeTab === 'walk') {
+        fetchOrsRoute('foot-walking');
+      } else if (activeTab === 'drive') {
+        fetchOrsRoute('driving-car');
+      }
   };
 
   const hasSpeechSupport = !!recognitionRef.current;
@@ -386,7 +390,6 @@ export default function RouteSearch() {
             const isWalk = step.line === 'walk';
             const color = LINE_COLORS[step.line] || LINE_COLORS.default;
             
-            // Mock Platform and Direction for richer UI
             const platformNumber = isWalk ? null : (['KJ', 'AG', 'SP', 'MR'].includes(step.line) ? `Platform ${Math.floor(Math.random() * 2) + 1}` : `Platform ${Math.random() > 0.5 ? 'A' : 'B'}`);
             const direction = isWalk ? null : `Towards ${Math.random() > 0.5 ? 'North' : 'South'}`;
             
@@ -548,8 +551,8 @@ export default function RouteSearch() {
               </button>
             </div>
 
-            <StationCombobox label="Origin" value={origin} onChange={setOrigin} stationsData={stationsData} />
-            <StationCombobox label="Destination" value={destination} onChange={setDestination} stationsData={stationsData} />
+             <StationCombobox label="Origin" value={origin} onChange={setOrigin} stationsData={stationsData} stationsByName={stationsByName} />
+             <StationCombobox label="Destination" value={destination} onChange={setDestination} stationsData={stationsData} stationsByName={stationsByName} />
             
             <button 
               onClick={handleManualSearch}
@@ -675,8 +678,19 @@ export default function RouteSearch() {
               Distance: {(orsRoute.distance / 1000).toFixed(2)} km
             </div>
             
+            {orsRoute.steps && (
+              <div className="mt-4 space-y-2 border-t border-white/10 pt-4">
+                {orsRoute.steps.map((step: any, i: number) => (
+                  <div key={i} className="text-sm text-gray-300 flex">
+                    <span className="mr-2 text-indigo-400 font-bold">{i + 1}.</span>
+                    {step.instruction}
+                  </div>
+                ))}
+              </div>
+            )}
+            
             {orsRoute.is_mock && (
-              <p className="text-xs text-gray-500 border-t border-white/10 pt-3">
+              <p className="text-xs text-gray-500 border-t border-white/10 pt-3 mt-4">
                 Live routing unavailable. Time is estimated based on straight-line distance.
               </p>
             )}

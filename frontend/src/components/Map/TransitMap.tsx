@@ -104,7 +104,7 @@ export default function TransitMap() {
       <Map
         ref={mapRef}
         initialViewState={{
-          longitude: 101.6932,
+          longitude: 101.6869,
           latitude: 3.1390,
           zoom: 12
         }}
@@ -178,14 +178,14 @@ export default function TransitMap() {
 
         {/* Start Pin (A) */}
         {mapData?.startStation && (
-           <Marker longitude={mapData.startStation.lng} latitude={mapData.startStation.lat} anchor="bottom">
-              <div className="relative flex flex-col items-center">
-                <div className="bg-emerald-500 text-white text-xs font-black px-2 py-1 rounded shadow-lg shadow-emerald-500/50 z-20 relative border border-white/20">
-                  {mapData.startStation.name}
-                </div>
-                <MapPin className="w-8 h-8 text-emerald-500 fill-emerald-500/20 -mt-2 z-10" />
+          <Marker longitude={mapData.startStation.lng} latitude={mapData.startStation.lat} anchor="bottom">
+            <div className="relative flex flex-col items-center">
+              <div className="bg-emerald-500 text-white text-xs font-black px-2 py-1 rounded shadow-lg shadow-emerald-500/50 z-20 relative border border-white/20">
+                {mapData.startStation.name}
               </div>
-           </Marker>
+              <MapPin className="w-8 h-8 text-emerald-500 fill-emerald-500/20 -mt-2 z-10" />
+            </div>
+          </Marker>
         )}
 
         {/* End Pin (B) */}

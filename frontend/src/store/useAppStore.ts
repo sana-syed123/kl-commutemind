@@ -43,6 +43,7 @@ interface AppState {
   selectedStationId: string | null;
   setSelectedStationId: (id: string | null) => void;
   stationsData: Record<string, StationData> | null;
+  stationsByName: Record<string, StationData> | null;
   isStationsLoading: boolean;
   fetchStations: () => Promise<void>;
 }
@@ -70,6 +71,7 @@ export const useAppStore = create<AppState>()(
       selectedStationId: null,
       setSelectedStationId: (id) => set({ selectedStationId: id }),
       stationsData: null,
+      stationsByName: null,
       isStationsLoading: false,
       fetchStations: async () => {
         set({ isStationsLoading: true });
@@ -79,12 +81,18 @@ export const useAppStore = create<AppState>()(
           const data = await res.json();
           
           const stationsMap: Record<string, StationData> = {};
+          const stationsByNameMap: Record<string, StationData> = {};
           const stationsList = data.stations || data;
           stationsList.forEach((s: any) => {
+            // Ensure lines is an array
+            s.lines = typeof s.lines === 'string' ? s.lines.split(' ') : s.lines;
+            // Map stop_id to id for consistent typing
+            s.id = s.stop_id;
             stationsMap[s.stop_id] = s;
+            stationsByNameMap[s.name] = s;
           });
           
-          set({ stationsData: stationsMap, isStationsLoading: false });
+          set({ stationsData: stationsMap, stationsByName: stationsByNameMap, isStationsLoading: false });
         } catch (error) {
           console.error("Error fetching GTFS stations:", error);
           set({ isStationsLoading: false });
@@ -98,5 +106,6 @@ export const useAppStore = create<AppState>()(
     }
   )
 );
+
 
 
